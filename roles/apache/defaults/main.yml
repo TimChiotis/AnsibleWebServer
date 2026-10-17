@@ -1,0 +1,12 @@
+---
+apache_site_name: ansible-demo
+apache_docroot: "/var/www/{{ apache_site_name }}"
+
+apache_pages:
+  - file: index.html
+    title: Welkom
+    body: "Deze pagina is uitgerold door Ansible en wordt geserveerd door apache2."
+
+  - file: over.html
+    title: Over deze server
+    body: "Zelfde aanpak als web1, andere role, andere webserver."

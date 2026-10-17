@@ -1,0 +1,39 @@
+---
+- name: Bootstrap managed nodes for Ansible
+  hosts: webservers
+  become: true
+  vars:
+    bootstrap_user: ansible
+    bootstrap_pubkey: "{{ lookup('ansible.builtin.file',
+'~/.ssh/ansible.pub') }}"
+    bootstrap_packages:
+      - sudo
+      - curl
+      - nano
+  tasks:
+    - name: Ensure base packages are present
+      ansible.builtin.apt:
+        name: "{{ bootstrap_packages }}"
+        state: present
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Ensure automation user exists
+      ansible.builtin.user:
+        name: "{{ bootstrap_user }}"
+        comment: Ansible automation user
+        shell: /bin/bash
+
+    - name: Authorize controller key for automation user
+      ansible.posix.authorized_key:
+        user: "{{ bootstrap_user }}"
+        key: "{{ bootstrap_pubkey }}"
+
+    - name: Allow automation user passwordless sudo
+      ansible.builtin.copy:
+        content: "{{ bootstrap_user }} ALL=(ALL) NOPASSWD: ALL\n"
+        dest: "/etc/sudoers.d/{{ bootstrap_user }}"
+        owner: root
+        group: root
+        mode: "0440"
+        validate: /usr/sbin/visudo -cf %s

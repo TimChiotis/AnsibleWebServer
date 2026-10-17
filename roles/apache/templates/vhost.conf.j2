@@ -1,0 +1,11 @@
+{{ ansible_managed | comment }}
+<VirtualHost *:80>
+    DocumentRoot {{ apache_docroot }}
+
+    <Directory {{ apache_docroot }}>
+        Require all granted
+    </Directory>
+
+    ErrorLog ${APACHE_LOG_DIR}/{{ apache_site_name }}-error.log
+    CustomLog ${APACHE_LOG_DIR}/{{ apache_site_name }}-access.log combined
+</VirtualHost>

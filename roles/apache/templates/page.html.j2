@@ -1,0 +1,35 @@
+<!doctype html>
+<!-- {{ ansible_managed }} -->
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<title>{{ item.title }} · {{ ansible_facts['hostname'] }}</title>
+<style>
+body { font-family: system-ui, sans-serif; max-width: 40rem; margin: 3rem
+Les: Ansible — controller, nginx en apache
+Page 25 of 41
+auto; padding: 0 1rem; }
+header { border-left: 6px solid #d22128; padding-left: 1rem; }
+nav a { margin-right: 1rem; }
+dl { display: grid; grid-template-columns: max-content 1fr; gap: .25rem
+1rem; }
+</style>
+</head>
+<body>
+<header>
+<h1>{{ item.title }}</h1>
+<p>{{ item.body }}</p>
+</header>
+<nav>
+{% for page in apache_pages %}
+<a href="{{ page.file }}">{{ page.title }}</a>
+{% endfor %}
+</nav>
+<dl>
+<dt>Host</dt><dd>{{ ansible_facts['hostname'] }}</dd>
+<dt>OS</dt><dd>{{ ansible_facts['distribution'] }} {{
+ansible_facts['distribution_version'] }}</dd>
+<dt>Webserver</dt><dd>apache2 (role: apache)</dd>
+</dl>
+</body>
+</html>

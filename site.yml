@@ -1,0 +1,6 @@
+---
+- name: Configure nginx web servers
+  ansible.builtin.import_playbook: nginx.yml
+
+- name: Configure apache web servers
+  ansible.builtin.import_playbook: apache.yml
