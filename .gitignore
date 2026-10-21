@@ -1,0 +1,13 @@
+# Terraform: state en lokale bestanden horen niet in git
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+
+# Geheimen
+*.tfvars
+.vault_pass
+
+# Ansible
+*.retry
