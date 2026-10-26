@@ -1,0 +1,23 @@
+---
+argument_specs:
+  main:
+    short_description: Install nginx and serve a static HTML site
+    options:
+      nginx_site_name:
+        type: str
+        default: ansible-demo
+        description: Name of the site configuration and the document root.
+
+      nginx_listen_port:
+        type: int
+        default: 80
+        description: TCP port nginx listens on.
+
+      nginx_docroot:
+        type: str
+        description: Directory the HTML pages are deployed to.
+
+      nginx_pages:
+        type: list
+        elements: dict
+        description: Pages to render, each with file, title and body.

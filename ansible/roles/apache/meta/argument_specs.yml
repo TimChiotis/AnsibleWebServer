@@ -1,0 +1,16 @@
+---
+argument_specs:
+  main:
+    short_description: Install apache2 and serve a static HTML site
+    options:
+      apache_site_name:
+        type: str
+        default: ansible-demo
+        description: Name of the virtual host and the document root.
+      apache_docroot:
+        type: str
+        description: Directory the HTML pages are deployed to.
+      apache_pages:
+        type: list
+        elements: dict
+        description: Pages to render, each with file, title and body.

@@ -1,0 +1,54 @@
+---
+- name: Install apache2
+  ansible.builtin.apt:
+    name: apache2
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Create document root
+  ansible.builtin.file:
+    path: "{{ apache_docroot }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Deploy HTML pages
+  ansible.builtin.template:
+    src: page.html.j2
+    dest: "{{ apache_docroot }}/{{ item.file }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop: "{{ apache_pages }}"
+  loop_control:
+    label: "{{ item.file }}"
+
+- name: Deploy virtual host
+  ansible.builtin.template:
+    src: vhost.conf.j2
+    dest: "/etc/apache2/sites-available/{{ apache_site_name }}.conf"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload apache2
+
+- name: Enable site
+  ansible.builtin.file:
+    src: "/etc/apache2/sites-available/{{ apache_site_name }}.conf"
+    dest: "/etc/apache2/sites-enabled/{{ apache_site_name }}.conf"
+    state: link
+  notify: Reload apache2
+
+- name: Disable default site
+  ansible.builtin.file:
+    path: /etc/apache2/sites-enabled/000-default.conf
+    state: absent
+  notify: Reload apache2
+
+- name: Ensure apache2 is started and enabled
+  ansible.builtin.service:
+    name: apache2
+    state: started
+    enabled: true

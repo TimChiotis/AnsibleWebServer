@@ -11,3 +11,4 @@ crash.log
 
 # Ansible
 *.retry
+ansible/inventory/hosts.yml
