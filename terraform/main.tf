@@ -9,13 +9,19 @@ terraform {
   }
 }
 
-# Regio — in fase B: rechtsboven in de console
 provider "aws" {
   region = var.region
 }
 
-# AMI — in fase B: Quick Start > Debian
-# Terraform zoekt zelf het nieuwste Debian 13-image van het Debian-project.
+# De machines en hun rol. Een machine erbij = een regel erbij.
+locals {
+  web_servers = {
+    web1 = "nginx"
+    web2 = "apache"
+  }
+}
+
+# Het nieuwste Debian 13-image van het Debian-project
 data "aws_ami" "debian13" {
   most_recent = true
   owners      = ["136693071363"]
@@ -31,21 +37,18 @@ data "aws_ami" "debian13" {
   }
 }
 
-# Het standaardnetwerk dat elk AWS-account heeft
 data "aws_vpc" "default" {
   default = true
 }
 
-# Key pair — in fase B: Import key pair
 resource "aws_key_pair" "aws_lab" {
   key_name   = "aws-lab"
   public_key = file(pathexpand(var.public_key_path))
 }
 
-# Security group — in fase B: Network settings > SSH vanaf My IP
-resource "aws_security_group" "test1" {
-  name        = "test1-ssh"
-  description = "SSH alleen vanaf de controller"
+resource "aws_security_group" "web" {
+  name        = "web-sg"
+  description = "SSH vanaf de controller, HTTP voor iedereen"
   vpc_id      = data.aws_vpc.default.id
 
   ingress {
@@ -54,6 +57,14 @@ resource "aws_security_group" "test1" {
     to_port     = 22
     protocol    = "tcp"
     cidr_blocks = [var.my_ip_cidr]
+  }
+
+  ingress {
+    description = "HTTP voor iedereen"
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   egress {
@@ -65,19 +76,26 @@ resource "aws_security_group" "test1" {
   }
 }
 
-# Instance — in fase B: Launch instance
-resource "aws_instance" "test1" {
+resource "aws_instance" "web" {
+  for_each = local.web_servers
+
   ami                    = data.aws_ami.debian13.id
   instance_type          = var.instance_type
   key_name               = aws_key_pair.aws_lab.key_name
-  vpc_security_group_ids = [aws_security_group.test1.id]
+  vpc_security_group_ids = [aws_security_group.web.id]
 
   root_block_device {
     volume_size = 8
     volume_type = "gp3"
   }
 
+  # IMDSv2 verplicht, zoals de console standaard doet
+  metadata_options {
+    http_tokens = "required"
+  }
+
   tags = {
-    Name = "test1"
+    Name = each.key
+    Role = each.value
   }
 }
