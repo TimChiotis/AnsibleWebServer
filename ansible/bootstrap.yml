@@ -4,12 +4,12 @@
   become: true
   vars:
     bootstrap_user: ansible
-    bootstrap_pubkey: "{{ lookup('ansible.builtin.file',
-'~/.ssh/ansible.pub') }}"
+    bootstrap_pubkey: "{{ lookup('ansible.builtin.file', '~/.ssh/ansible.pub') }}"
     bootstrap_packages:
       - sudo
       - curl
-      - nano
+      - vim
+      - locales
   tasks:
     - name: Ensure base packages are present
       ansible.builtin.apt:
@@ -17,6 +17,11 @@
         state: present
         update_cache: true
         cache_valid_time: 3600
+
+    - name: Ensure en_US.UTF-8 locale is available
+      community.general.locale_gen:
+        name: en_US.UTF-8
+        state: present
 
     - name: Ensure automation user exists
       ansible.builtin.user:
