@@ -1,0 +1,47 @@
+---
+- name: Point DNS records to the current public IPs
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_files:
+    - vault/gandi.yml
+  vars:
+    dns_domain: whistlehub.org
+    dns_subdomain: groep2
+    dns_api: "https://api.gandi.net/v5/livedns/domains/{{ dns_domain }}/records"
+    dns_records: "{{ lookup('ansible.builtin.pipe', 'terraform -chdir=../terraform output -json public_ips') | from_json }}"
+  tasks:
+    - name: Read current A records
+      ansible.builtin.uri:
+        url: "{{ dns_api }}/{{ item.key }}.{{ dns_subdomain }}/A"
+        headers:
+          Authorization: "Bearer {{ gandi_pat }}"
+        status_code: [200, 404]
+      loop: "{{ dns_records | dict2items }}"
+      loop_control:
+        label: "{{ item.key }}.{{ dns_subdomain }}.{{ dns_domain }}"
+      register: dns_current
+      until: dns_current.status | default(0) in [200, 404]
+      retries: 3
+      delay: 5
+
+    - name: Set A records that are missing or point elsewhere
+      ansible.builtin.uri:
+        url: "{{ dns_api }}/{{ item.item.key }}.{{ dns_subdomain }}/A"
+        method: PUT
+        headers:
+          Authorization: "Bearer {{ gandi_pat }}"
+        body_format: json
+        body:
+          rrset_values: ["{{ item.item.value }}"]
+          rrset_ttl: 300
+        status_code: [200, 201]
+      loop: "{{ dns_current.results }}"
+      loop_control:
+        label: "{{ item.item.key }}.{{ dns_subdomain }}.{{ dns_domain }} -> {{ item.item.value }}"
+      when: item.status == 404 or item.json.rrset_values != [item.item.value]
+      register: dns_set
+      until: dns_set.status | default(0) in [200, 201]
+      retries: 3
+      delay: 5
+      changed_when: true
