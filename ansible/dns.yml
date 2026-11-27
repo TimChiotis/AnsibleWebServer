@@ -6,11 +6,21 @@
   vars_files:
     - vault/gandi.yml
   vars:
-    dns_domain: whistlehub.org
+    dns_domain: dummy-domain.app
     dns_subdomain: groep2
     dns_api: "https://api.gandi.net/v5/livedns/domains/{{ dns_domain }}/records"
     dns_records: "{{ lookup('ansible.builtin.pipe', 'terraform -chdir=../terraform output -json public_ips') | from_json }}"
+    dns_missing_ip: "{{ dns_records | dict2items | selectattr('value', 'equalto', '') | map(attribute='key') | list }}"
   tasks:
+    - name: Refuse to write records for hosts without a public IP
+      ansible.builtin.assert:
+        that: dns_missing_ip | length == 0
+        fail_msg: >-
+          No public IP for {{ dns_missing_ip | join(', ') }}.
+          Stopped? Start the instances, run terraform apply -refresh-only
+          and write the inventory again.
+        quiet: true
+
     - name: Read current A records
       ansible.builtin.uri:
         url: "{{ dns_api }}/{{ item.key }}.{{ dns_subdomain }}/A"
