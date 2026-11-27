@@ -4,3 +4,9 @@
 
 - name: Configure apache web servers
   ansible.builtin.import_playbook: apache.yml
+
+- name: Install node_exporter on every host
+  ansible.builtin.import_playbook: node_exporter.yml
+
+- name: Configure the monitoring server
+  ansible.builtin.import_playbook: monitoring.yml

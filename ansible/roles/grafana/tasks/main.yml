@@ -1,0 +1,62 @@
+---
+- name: Ensure the apt keyrings directory exists
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Download the Grafana repository key
+  ansible.builtin.get_url:
+    url: https://apt.grafana.com/gpg.key
+    dest: /etc/apt/keyrings/grafana.asc
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Add the Grafana repository
+  ansible.builtin.copy:
+    content: "deb [signed-by=/etc/apt/keyrings/grafana.asc] https://apt.grafana.com stable main\n"
+    dest: /etc/apt/sources.list.d/grafana.list
+    owner: root
+    group: root
+    mode: "0644"
+  register: grafana_repo
+
+- name: Update the apt cache when the repository was just added
+  ansible.builtin.apt:
+    update_cache: true
+  when: grafana_repo.changed
+
+- name: Install grafana
+  ansible.builtin.apt:
+    name: grafana
+    state: present
+
+- name: Set the admin password before the first start
+  community.general.ini_file:
+    path: /etc/grafana/grafana.ini
+    section: security
+    option: admin_password
+    value: "{{ grafana_admin_password }}"
+    owner: root
+    group: grafana
+    mode: "0640"
+  no_log: true
+  notify: Restart grafana
+
+- name: Provision Prometheus as datasource
+  ansible.builtin.template:
+    src: datasource-prometheus.yml.j2
+    dest: /etc/grafana/provisioning/datasources/prometheus.yml
+    owner: root
+    group: grafana
+    mode: "0640"
+  notify: Restart grafana
+
+- name: Ensure grafana-server is started and enabled
+  ansible.builtin.service:
+    name: grafana-server
+    state: started
+    enabled: true
