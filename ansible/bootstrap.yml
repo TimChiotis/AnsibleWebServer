@@ -1,6 +1,6 @@
 ---
 - name: Bootstrap managed nodes for Ansible
-  hosts: webservers
+  hosts: all
   become: true
   vars:
     bootstrap_user: ansible

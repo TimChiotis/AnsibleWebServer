@@ -1,0 +1,14 @@
+---
+argument_specs:
+  main:
+    short_description: Install Grafana from apt.grafana.com with Prometheus as datasource
+    options:
+      grafana_admin_password:
+        type: str
+        required: true
+        no_log: true
+        description: Password of the Grafana admin user, set before the first start
+      grafana_prometheus_url:
+        type: str
+        default: http://localhost:9090
+        description: URL of Prometheus as seen from the Grafana server

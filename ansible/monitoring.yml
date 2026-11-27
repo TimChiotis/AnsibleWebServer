@@ -1,0 +1,9 @@
+---
+- name: Configure the monitoring server
+  hosts: monitoring
+  become: true
+  vars_files:
+    - vault/grafana.yml
+  roles:
+    - prometheus
+    - grafana

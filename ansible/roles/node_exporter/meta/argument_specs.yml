@@ -1,0 +1,5 @@
+---
+argument_specs:
+  main:
+    short_description: Install and run prometheus-node-exporter on port 9100
+    options: {}

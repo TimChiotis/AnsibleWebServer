@@ -1,0 +1,23 @@
+---
+- name: Install prometheus
+  ansible.builtin.apt:
+    name: prometheus
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Deploy prometheus configuration
+  ansible.builtin.template:
+    src: prometheus.yml.j2
+    dest: /etc/prometheus/prometheus.yml
+    owner: root
+    group: root
+    mode: "0644"
+    validate: promtool check config %s
+  notify: Restart prometheus
+
+- name: Ensure prometheus is started and enabled
+  ansible.builtin.service:
+    name: prometheus
+    state: started
+    enabled: true

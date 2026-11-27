@@ -1,0 +1,17 @@
+---
+argument_specs:
+  main:
+    short_description: Install Prometheus and scrape node_exporter on every inventory host
+    options:
+      prometheus_scrape_interval:
+        type: str
+        default: 15s
+        description: How often Prometheus scrapes each target
+      prometheus_targets_group:
+        type: str
+        default: all
+        description: Inventory group whose hosts are scraped via their private_ip
+      prometheus_node_exporter_port:
+        type: int
+        default: 9100
+        description: Port of node_exporter on the targets
