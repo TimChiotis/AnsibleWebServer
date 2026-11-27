@@ -25,3 +25,9 @@ variable "my_ip_cidr" {
     error_message = "Geef een adres in CIDR-notatie, bijvoorbeeld 94.227.244.193/32."
   }
 }
+
+variable "monitoring_instance_type" {
+  description = "Instance type voor monitoring1"
+  type        = string
+  default     = "t3.small"
+}
