@@ -55,6 +55,32 @@
     mode: "0640"
   notify: Restart grafana
 
+- name: Ensure the dashboards directory exists
+  ansible.builtin.file:
+    path: /var/lib/grafana/dashboards
+    state: directory
+    owner: root
+    group: grafana
+    mode: "0750"
+
+- name: Deploy the dashboards
+  ansible.builtin.copy:
+    src: dashboards/
+    dest: /var/lib/grafana/dashboards/
+    owner: root
+    group: grafana
+    mode: "0640"
+  notify: Restart grafana
+
+- name: Provision the dashboard provider
+  ansible.builtin.copy:
+    src: dashboard-provider.yml
+    dest: /etc/grafana/provisioning/dashboards/course.yml
+    owner: root
+    group: grafana
+    mode: "0640"
+  notify: Restart grafana
+
 - name: Ensure grafana-server is started and enabled
   ansible.builtin.service:
     name: grafana-server
