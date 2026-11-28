@@ -1,0 +1,127 @@
+---
+- name: Verify that the whole chain works
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_files:
+    - vault/grafana.yml
+  vars:
+    verify_domain: dummy-domain.app
+    verify_subdomain: groep2
+    verify_nameserver: ns-32-a.gandi.net
+    verify_retries: 12
+    verify_delay: 15
+    verify_public_ips: "{{ lookup('ansible.builtin.pipe', 'terraform -chdir=../terraform output -json public_ips') | from_json }}"
+    verify_web_servers:
+      web1: nginx
+      web2: Apache
+    verify_monitoring: "monitoring1.{{ verify_subdomain }}.{{ verify_domain }}"
+    verify_grafana: "http://{{ verify_monitoring }}:3000"
+    verify_prometheus: "http://{{ verify_monitoring }}:9090"
+    verify_dashboard_uid: rYdddlPWk
+  tasks:
+    - name: DNS names point to the current public IPs
+      ansible.builtin.command: "dig +short {{ item.key }}.{{ verify_subdomain }}.{{ verify_domain }} @{{ verify_nameserver }}"
+      loop: "{{ verify_public_ips | dict2items }}"
+      loop_control:
+        label: "{{ item.key }}.{{ verify_subdomain }}.{{ verify_domain }} -> {{ item.value }}"
+      register: verify_dns
+      until: verify_dns.stdout == item.value
+      retries: "{{ verify_retries }}"
+      delay: "{{ verify_delay }}"
+      changed_when: false
+
+    - name: Web servers answer through their name with the right software
+      ansible.builtin.uri:
+        url: "http://{{ item.key }}.{{ verify_subdomain }}.{{ verify_domain }}/"
+        timeout: 10
+      loop: "{{ verify_web_servers | dict2items }}"
+      loop_control:
+        label: "{{ item.key }} -> Server: {{ item.value }}"
+      register: verify_web
+      until: verify_web.status == 200 and item.value in (verify_web.server | default(''))
+      retries: "{{ verify_retries }}"
+      delay: "{{ verify_delay }}"
+
+    - name: Prometheus scrapes every host and all targets are up
+      ansible.builtin.uri:
+        url: "{{ verify_prometheus }}/api/v1/targets"
+        timeout: 10
+      register: verify_targets
+      until: >-
+        verify_targets.json is defined and
+        (verify_targets.json.data.activeTargets
+         | selectattr('labels.job', 'equalto', 'node')
+         | selectattr('health', 'equalto', 'up')
+         | list | length) == (verify_public_ips | length)
+      retries: "{{ verify_retries }}"
+      delay: "{{ verify_delay }}"
+
+    - name: Grafana is healthy
+      ansible.builtin.uri:
+        url: "{{ verify_grafana }}/api/health"
+        timeout: 10
+      register: verify_grafana_health
+      until: verify_grafana_health.json is defined and verify_grafana_health.json.database == 'ok'
+      retries: "{{ verify_retries }}"
+      delay: "{{ verify_delay }}"
+
+    - name: Grafana reaches Prometheus through the datasource
+      ansible.builtin.uri:
+        url: "{{ verify_grafana }}/api/datasources/uid/prometheus/health"
+        url_username: admin
+        url_password: "{{ grafana_admin_password }}"
+        force_basic_auth: true
+        timeout: 10
+      register: verify_datasource
+      until: verify_datasource.json is defined and verify_datasource.json.status == 'OK'
+      retries: "{{ verify_retries }}"
+      delay: "{{ verify_delay }}"
+
+    - name: Grafana has loaded the dashboard from provisioning
+      ansible.builtin.uri:
+        url: "{{ verify_grafana }}/api/dashboards/uid/{{ verify_dashboard_uid }}"
+        url_username: admin
+        url_password: "{{ grafana_admin_password }}"
+        force_basic_auth: true
+        timeout: 10
+      register: verify_dashboard
+      until: verify_dashboard.json is defined and (verify_dashboard.json.meta.provisioned | default(false))
+      retries: "{{ verify_retries }}"
+      delay: "{{ verify_delay }}"
+
+    - name: The loaded dashboard has no unresolved import placeholders
+      ansible.builtin.assert:
+        that: "'${DS_' not in (verify_dashboard.json.dashboard | to_json)"
+        fail_msg: The dashboard still contains ${DS_...} placeholders.
+        quiet: true
+
+    - name: Grafana can query Prometheus and gets data back
+      ansible.builtin.uri:
+        url: "{{ verify_grafana }}/api/ds/query"
+        method: POST
+        url_username: admin
+        url_password: "{{ grafana_admin_password }}"
+        force_basic_auth: true
+        body_format: json
+        body:
+          from: now-5m
+          to: now
+          queries:
+            - refId: A
+              datasource:
+                type: prometheus
+                uid: prometheus
+              expr: up
+              instant: true
+        timeout: 10
+      register: verify_query
+      until: >-
+        verify_query.json is defined and
+        (verify_query.json.results.A.frames | default([]) | length) >= (verify_public_ips | length)
+      retries: "{{ verify_retries }}"
+      delay: "{{ verify_delay }}"
+
+    - name: Summary
+      ansible.builtin.debug:
+        msg: "All checks passed for {{ verify_public_ips | length }} hosts in {{ verify_subdomain }}.{{ verify_domain }}."
